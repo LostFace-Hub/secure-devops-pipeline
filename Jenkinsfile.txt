@@ -17,7 +17,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t $IMAGE_NAME .'
+                    bash 'docker build -t $IMAGE_NAME .'
                 }
             }
         }
@@ -25,8 +25,8 @@ pipeline {
         stage('Trivy Scan') {
             steps {
                 script {
-                    sh 'mkdir -p trivy-report'
-                    sh 'trivy image --format table --output $REPORT_PATH $IMAGE_NAME'
+                    bash 'mkdir -p trivy-report'
+                    bash 'trivy image --format table --output $REPORT_PATH $IMAGE_NAME'
                 }
             }
         }
@@ -46,8 +46,8 @@ pipeline {
 
         stage('Deploy (Docker Compose)') {
             steps {
-                sh 'docker-compose down || true'
-                sh 'docker-compose up -d'
+                bash 'docker-compose down || true'
+                bash 'docker-compose up -d'
             }
         }
     }
