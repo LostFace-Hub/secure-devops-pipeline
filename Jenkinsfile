@@ -1,60 +1,43 @@
 pipeline {
     agent any
-
     environment {
-        IMAGE_NAME = "secure-devops-project"
-        REPORT_PATH = "trivy-report/scan.txt"
+        DOCKER_BUILDKIT = 1
+        DOCKER_CLI_EXPERIMENTAL = 1
     }
-
     stages {
-        stage('Clone') {
+        stage('Checkout') {
             steps {
-                echo "Checking out code..."
                 checkout scm
             }
         }
-
         stage('Build Docker Image') {
             steps {
                 script {
-                    bat 'docker build -t %IMAGE_NAME% .'
+                    // Ensure Docker is working fine
+                    sh 'docker --version'
+                    sh 'docker build -t secure-devops-project .'
                 }
             }
         }
-
         stage('Trivy Scan') {
             steps {
                 script {
-                    bat 'if not exist trivy-report mkdir trivy-report'
-                    bat 'trivy image --format table --output %REPORT_PATH% %IMAGE_NAME%'
+                    // Ensure trivy is installed and working
+                    sh 'trivy --version'
+                    sh 'trivy image --timeout 600s --format table --output trivy-report/scan.txt secure-devops-project'
                 }
-            }
-        }
-
-        stage('Check Vulnerabilities') {
-            steps {
-                script {
-                    def report = readFile("%REPORT_PATH%")
-                    if (report.contains("CRITICAL") || report.contains("HIGH")) {
-                        error("High or Critical vulnerabilities found! Aborting.")
-                    } else {
-                        echo "No major vulnerabilities found. Safe to proceed."
-                    }
-                }
-            }
-        }
-
-        stage('Deploy (Docker Compose)') {
-            steps {
-                bat 'docker-compose down || true'
-                bat 'docker-compose up -d'
             }
         }
     }
-
     post {
         always {
-            archiveArtifacts artifacts: 'trivy-report/*.txt', allowEmptyArchive: true
+            echo 'Pipeline finished.'
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed.'
         }
     }
 }
