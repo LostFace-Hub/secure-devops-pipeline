@@ -17,7 +17,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    bat "docker build -t ${env.IMAGE_NAME} ."
+                    bat 'docker build -t %IMAGE_NAME% .'
                 }
             }
         }
@@ -26,7 +26,7 @@ pipeline {
             steps {
                 script {
                     bat 'if not exist trivy-report mkdir trivy-report'
-                    bat "trivy image --format table --output ${env.REPORT_PATH} ${env.IMAGE_NAME}"
+                    bat 'trivy image --format table --output %REPORT_PATH% %IMAGE_NAME%'
                 }
             }
         }
@@ -34,9 +34,11 @@ pipeline {
         stage('Check Vulnerabilities') {
             steps {
                 script {
-                    def report = readFile("${env.REPORT_PATH}")
+                    def report = readFile("%REPORT_PATH%")
                     if (report.contains("CRITICAL") || report.contains("HIGH")) {
-                        error("High or Critical vulnerabilities found! Aborting.")
+                        echo "High or Critical vulnerabilities found!"
+                        currentBuild.result = 'FAILURE'
+                        error("Aborting due to vulnerabilities.")
                     } else {
                         echo "No major vulnerabilities found. Safe to proceed."
                     }
@@ -46,8 +48,10 @@ pipeline {
 
         stage('Deploy (Docker Compose)') {
             steps {
-                bat 'docker-compose down || true'
-                bat 'docker-compose up -d'
+                script {
+                    bat 'docker-compose down || true'
+                    bat 'docker-compose up -d'
+                }
             }
         }
     }
@@ -55,6 +59,10 @@ pipeline {
     post {
         always {
             archiveArtifacts artifacts: 'trivy-report/*.txt', allowEmptyArchive: true
+        }
+
+        failure {
+            echo "Build failed due to vulnerabilities or other errors."
         }
     }
 }
