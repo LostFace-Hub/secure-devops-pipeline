@@ -1,43 +1,60 @@
 pipeline {
     agent any
+
     environment {
-        DOCKER_BUILDKIT = 1
-        DOCKER_CLI_EXPERIMENTAL = 1
+        IMAGE_NAME = "secure-flask-app"
+        REPORT_PATH = "trivy-report/scan.txt"
     }
+
     stages {
-        stage('Checkout') {
+        stage('Clone') {
             steps {
+                echo "Checking out code..."
                 checkout scm
             }
         }
+
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Ensure Docker is working fine
-                    sh 'docker --version'
-                    sh 'docker build -t secure-devops-project .'
+                    bat 'docker build -t %IMAGE_NAME% .'
                 }
             }
         }
+
         stage('Trivy Scan') {
             steps {
                 script {
-                    // Ensure trivy is installed and working
-                    sh 'trivy --version'
-                    sh 'trivy image --timeout 600s --format table --output trivy-report/scan.txt secure-devops-project'
+                    bat 'if not exist trivy-report mkdir trivy-report'
+                    bat 'trivy image --format table --output %REPORT_PATH% %IMAGE_NAME%'
                 }
             }
         }
+
+        stage('Check Vulnerabilities') {
+            steps {
+                script {
+                    def report = readFile("%REPORT_PATH%")
+                    if (report.contains("CRITICAL") || report.contains("HIGH")) {
+                        error("High or Critical vulnerabilities found! Aborting.")
+                    } else {
+                        echo "No major vulnerabilities found. Safe to proceed."
+                    }
+                }
+            }
+        }
+
+        stage('Deploy (Docker Compose)') {
+            steps {
+                bat 'docker-compose down || true'
+                bat 'docker-compose up -d'
+            }
+        }
     }
+
     post {
         always {
-            echo 'Pipeline finished.'
-        }
-        success {
-            echo 'Pipeline completed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed.'
+            archiveArtifacts artifacts: 'trivy-report/*.txt', allowEmptyArchive: true
         }
     }
 }
