@@ -17,7 +17,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    bat 'docker build -t %IMAGE_NAME% .'
+                    bat "docker build -t ${env.IMAGE_NAME} ."
                 }
             }
         }
@@ -26,7 +26,7 @@ pipeline {
             steps {
                 script {
                     bat 'if not exist trivy-report mkdir trivy-report'
-                    bat 'trivy image --format table --output %REPORT_PATH% %IMAGE_NAME%'
+                    bat "trivy image --format table --output ${env.REPORT_PATH} ${env.IMAGE_NAME}"
                 }
             }
         }
@@ -34,7 +34,7 @@ pipeline {
         stage('Check Vulnerabilities') {
             steps {
                 script {
-                    def report = readFile("%REPORT_PATH%")
+                    def report = readFile("${env.REPORT_PATH}")
                     if (report.contains("CRITICAL") || report.contains("HIGH")) {
                         error("High or Critical vulnerabilities found! Aborting.")
                     } else {
