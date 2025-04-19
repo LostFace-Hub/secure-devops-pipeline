@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "secure-flask-app"
+        IMAGE_NAME = "secure-devops-project"
         REPORT_PATH = "trivy-report/scan.txt"
     }
 
@@ -25,7 +25,7 @@ pipeline {
         stage('Trivy Scan') {
             steps {
                 script {
-                    bat 'mkdir -p trivy-report'
+                    bat 'if not exist trivy-report mkdir trivy-report'
                     bat 'trivy image --format table --output %REPORT_PATH% %IMAGE_NAME%'
                 }
             }
